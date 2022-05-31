@@ -121,7 +121,7 @@ RTC::ReturnCode_t CollisionDetector2::onInitialize()
     std::cerr << "[" << this->m_profile.instance_name << "] collision_model: " << collisionModelStr <<std::endl;
     if ( collisionModelStr == "convex hull" ||
          collisionModelStr == "" ) { // set convex hull as default
-      choreonoid_qhull::convertAllCollisionToConvexHull(this->m_robot);
+      //choreonoid_qhull::convertAllCollisionToConvexHull(this->m_robot);
     }
     setupVClipModel(this->m_robot);
 
@@ -212,6 +212,11 @@ RTC::ReturnCode_t CollisionDetector2::onInitialize()
     this->collision_beep_freq = 3.0; // 3 times / 1[s]
     this->collision_beep_count = 0;
     m_beepCommand.data.length(bc.get_num_beep_info());
+
+    this->m_bodyCollisionDetector.setCollisionDetector(new cnoid::AISTCollisionDetector);
+    this->m_bodyCollisionDetector.addBody(this->m_robot, true);
+    this->m_bodyCollisionDetector.makeReady();
+
     return RTC::RTC_OK;
 }
 
@@ -304,25 +309,42 @@ RTC::ReturnCode_t CollisionDetector2::onExecute(RTC::UniqueId ec_id)
       coil::TimeValue tm1 = coil::gettimeofday();
 
       // m_collision_loop 回の周期に分けて、干渉をチェックする.
-      {
-        std::map<std::string, std::shared_ptr<CollisionLinkPair> >::iterator it = this->m_pair.begin();
-        for ( int i = 0; it != m_pair.end(); it++, i++){
-          int sub_size = (m_pair.size() + m_collision_loop -1) / m_collision_loop;  // 10 / 3 = 3  / floor
-          // 0 : 0 .. sub_size-1                            // 0 .. 2
-          // 1 : sub_size ... sub_size*2-1                  // 3 .. 5
-          // k : sub_size*k ... sub_size*(k+1)-1            // 6 .. 8
-          // n : sub_size*n ... m_pair.size()               // 9 .. 10
-          if ( sub_size*m_loop_for_check <= i && i < sub_size*(m_loop_for_check+1) ) {
-            std::shared_ptr<CollisionLinkPair> c = it->second;
-            cnoid::Vector3 point0_local, point1_local;
-            choreonoid_vclip::computeDistance(this->m_VclipLinks[c->link0], c->link0->p(), c->link0->R(),
-                                              this->m_VclipLinks[c->link1], c->link1->p(), c->link1->R(),
-                                              c->distance, point0_local, point1_local);
-            c->point0 = c->link0->T() * point0_local;
-            c->point1 = c->link1->T() * point1_local;
-          }
-        }
+      // {
+      //   std::map<std::string, std::shared_ptr<CollisionLinkPair> >::iterator it = this->m_pair.begin();
+      //   for ( int i = 0; it != m_pair.end(); it++, i++){
+      //     int sub_size = (m_pair.size() + m_collision_loop -1) / m_collision_loop;  // 10 / 3 = 3  / floor
+      //     // 0 : 0 .. sub_size-1                            // 0 .. 2
+      //     // 1 : sub_size ... sub_size*2-1                  // 3 .. 5
+      //     // k : sub_size*k ... sub_size*(k+1)-1            // 6 .. 8
+      //     // n : sub_size*n ... m_pair.size()               // 9 .. 10
+      //     if ( sub_size*m_loop_for_check <= i && i < sub_size*(m_loop_for_check+1) ) {
+      //       std::shared_ptr<CollisionLinkPair> c = it->second;
+      //       cnoid::Vector3 point0_local, point1_local;
+      //       choreonoid_vclip::computeDistance(this->m_VclipLinks[c->link0], c->link0->p(), c->link0->R(),
+      //                                         this->m_VclipLinks[c->link1], c->link1->p(), c->link1->R(),
+      //                                         c->distance, point0_local, point1_local);
+      //       c->point0 = c->link0->T() * point0_local;
+      //       c->point1 = c->link1->T() * point1_local;
+      //     }
+      //   }
+      // }
+
+      for(std::map<std::string, std::shared_ptr<CollisionLinkPair> >::iterator it = m_pair.begin(); it!=m_pair.end();it++){
+        it->second->point0 = it->second->link0->p();
+        it->second->point1 = it->second->link1->p();
+        it->second->distance = 1.0;
       }
+      this->m_bodyCollisionDetector.updatePositions();
+      this->m_bodyCollisionDetector.detectCollisions([&](const cnoid::CollisionPair& collisionPair){
+          cnoid::Link* link0 = static_cast<cnoid::Link*>(collisionPair.object(0));
+          cnoid::Link* link1 = static_cast<cnoid::Link*>(collisionPair.object(1));
+          std::string name = link0->name() + ":" + link1->name();
+          if(m_pair.find(name) == m_pair.end()) return;
+          std::shared_ptr<CollisionLinkPair> c = m_pair[name];
+          if(collisionPair.collisions().size() == 0) return;
+          c->point0 = c->point1 = collisionPair.collisions()[0].point;
+          c->distance = -collisionPair.collisions()[0].depth;
+        });
 
       coil::TimeValue tm2 = coil::gettimeofday();
 

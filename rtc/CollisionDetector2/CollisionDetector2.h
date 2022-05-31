@@ -21,6 +21,8 @@
 #include <cnoid/Body>
 #include <choreonoid_vclip/choreonoid_vclip.h>
 #include <unordered_map>
+#include <cnoid/BodyCollisionDetector>
+#include <cnoid/AISTCollisionDetector>
 
 #include "CollisionDetector2Service_impl.h"
 #include "../SoftErrorLimiter2/beep.h"
@@ -140,6 +142,8 @@ class CollisionDetector2
   bool collision_mode;
   cnoid::VectorXd m_stop_jointdata;
   bool m_safe_posture;
+
+  cnoid::BodyCollisionDetector m_bodyCollisionDetector;
 };
 
 extern "C"

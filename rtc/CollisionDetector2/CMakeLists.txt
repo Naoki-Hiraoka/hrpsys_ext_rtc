@@ -9,7 +9,6 @@ find_package(catkin REQUIRED COMPONENTS
   rtmbuild
   choreonoid_qhull
   choreonoid_vclip
-  cpp_filters
   )
 
 find_package(choreonoid REQUIRED)

@@ -114,6 +114,14 @@ RTC::ReturnCode_t SoftErrorLimiter2::onInitialize()
   if(this->getProperties().hasKey("model")) fileName = std::string(this->getProperties()["model"]);
   else fileName = std::string(this->m_pManager->getConfig()["model"]); // 引数 -o で与えたプロパティを捕捉
   std::cerr << "[" << this->m_profile.instance_name << "] model: " << fileName <<std::endl;
+  {
+    std::string prefix = "file://";  // OpenHRP3との互換性のため
+    if (fileName.size() >= prefix.size() &&
+        std::equal(std::begin(prefix), std::end(prefix), std::begin(fileName))) {
+      fileName.erase(0,prefix.size());
+    }
+  }
+
   m_robot = bodyLoader.load(fileName);
   if(!m_robot){
     std::cerr << "\x1b[31m[" << m_profile.instance_name << "] " << "failed to load model[" << fileName << "]" << "\x1b[39m" << std::endl;
