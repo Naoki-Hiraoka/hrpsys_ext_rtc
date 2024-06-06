@@ -38,7 +38,7 @@ add_library(CollisionDetector2 SHARED
   )
 target_link_libraries(CollisionDetector2
   ${catkin_LIBRARIES}
-  ${CHOREONOID_BODY_LIBRARIES_ABS}
+  ${CHOREONOID_BODY_LIBRARIES}
   ${openrtm_aist_LIBRARIES}
   ${${PROJECT_NAME}_IDLLIBRARY_DIRS}
   HRPDataTypesSkel HRPDataTypesStub
